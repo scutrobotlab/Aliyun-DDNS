@@ -14,7 +14,7 @@ func UpdateRecord(client *alidns.Client, domain_RRkeyword string, domain_name st
 	var record_type string
 	var record_addr string
 
-	log.Println("Checking domain / 检查域名: ", domain_RRkeyword+domain_name)
+	log.Println("Checking domain / 检查域名: ", domain_RRkeyword+"."+domain_name)
 
 	{
 		request := alidns.CreateDescribeDomainRecordsRequest()
