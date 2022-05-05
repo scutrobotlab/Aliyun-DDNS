@@ -1,4 +1,5 @@
 FROM golang
+WORKDIR /build
 COPY . .
 RUN go build
 
