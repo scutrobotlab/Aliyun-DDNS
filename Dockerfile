@@ -4,5 +4,5 @@ COPY . .
 RUN go build
 
 FROM scratch
-COPY --from=0 ./aliyun-ddns ./
-CMD ["./aliyun-ddns"]
+COPY --from=0 /build/aliyun-ddns ./
+ENTRYPOINT ["./aliyun-ddns"]
