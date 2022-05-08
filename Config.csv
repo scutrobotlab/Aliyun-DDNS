@@ -1,0 +1,4 @@
+RR,Domain,Type,Line,Interface
+*,example.com,A,default,em1
+@,example.com,A,default,em1
+www,example.com,A,default,em1

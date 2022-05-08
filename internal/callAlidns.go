@@ -6,45 +6,80 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/alidns"
 )
 
+type rr_domain_type struct {
+	RR     string
+	Domain string
+	Type   string
+}
+type id_addr struct {
+	ID   string
+	Addr string
+}
+
 // Update DNS record with aliyun API. / 使用阿里云 API 更新 DNS 记录。
-// Check if domain record value same as addr. If not, modified it. / 检查 domain 记录值与 addr 是否一致。如不一致，则修改记录值。
-func UpdateRecord(client *alidns.Client, domain_RRkeyword string, domain_name string, addr string) {
-	var record_id string
-	var record_rr string
-	var record_type string
-	var record_addr string
+func UpdateRecord(client *alidns.Client, config []Config, ipv6_addr map[string]string, ipv4_addr map[string]string) {
+	domains := map[string]bool{}
+	for _, c := range config {
+		domains[c.Domain] = true
+	}
 
-	log.Println("Checking domain / 检查域名: ", domain_RRkeyword+"."+domain_name)
+	records := map[rr_domain_type]id_addr{}
 
-	{
+	for d := range domains {
 		request := alidns.CreateDescribeDomainRecordsRequest()
 		request.Scheme = "https"
-		request.DomainName = domain_name
-		request.RRKeyWord = domain_RRkeyword
+		request.Domain = d
 		response, err := client.DescribeDomainRecords(request)
 		if err != nil {
 			log.Panicln(err.Error())
 		}
 		for _, r := range response.DomainRecords.Record {
-			record_id = r.RecordId
-			record_rr = r.RR
-			record_type = r.Type
-			record_addr = r.Value
+			records[rr_domain_type{
+				RR:     r.RR,
+				Domain: d,
+				Type:   r.Type,
+			}] = id_addr{
+				ID:   r.RecordId,
+				Addr: r.Value,
+			}
 		}
 	}
 
-	if record_addr != addr {
+	for _, conf := range config {
+		var addr string
+		switch conf.Type {
+		case "AAAA":
+			addr = ipv6_addr[conf.Interface]
+		case "A":
+			addr = ipv4_addr[conf.Interface]
+		default:
+			log.Println("Invalid record type, skipped. / 不合法的记录类型，跳过。", conf.Type)
+			continue
+		}
+		rdt := rr_domain_type{
+			RR:     conf.RR,
+			Domain: conf.Domain,
+			Type:   conf.Type,
+		}
+		rec, ok := records[rdt]
+		if !ok {
+			log.Println("Domain record not found. / 未找到匹配的记录。", rdt)
+			return
+		}
+		if rec.Addr == addr {
+			log.Println("Domain record don't need to be modified. / 域名记录无需修改。")
+			return
+		}
 		request := alidns.CreateUpdateDomainRecordRequest()
-		request.RecordId = record_id
-		request.RR = record_rr
-		request.Type = record_type
+		request.RecordId = rec.ID
+		request.RR = conf.RR
+		request.Type = conf.Type
 		request.Value = addr
 		response, err := client.UpdateDomainRecord(request)
 		if err != nil {
 			log.Panicln(err.Error())
 		}
 		log.Println("Domain record has been modified. / 域名记录已修改。", response.String())
-	} else {
-		log.Println("Domain record don't need to be modified. / 域名记录无需修改。")
+
 	}
 }
