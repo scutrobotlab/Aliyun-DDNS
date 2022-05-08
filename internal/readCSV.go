@@ -58,16 +58,19 @@ func GetConfig(file string) []Config {
 		header[s] = i
 	}
 
-	config := make([]Config, len(data)-1)
-	for i := range data {
+	config := make([]Config, 0, len(data)-1)
+	for i, d := range data {
 		if i == 0 {
 			continue
 		}
-		config[i].RR = data[i][header["RR"]]
-		config[i].Domain = data[i][header["Domain"]]
-		config[i].Type = data[i][header["Type"]]
-		config[i].Line = data[i][header["Line"]]
-		config[i].Interface = data[i][header["Interface"]]
+		config = append(config,
+			Config{
+				RR:        d[header["RR"]],
+				Domain:    d[header["Domain"]],
+				Type:      d[header["Type"]],
+				Line:      d[header["Line"]],
+				Interface: d[header["Interface"]],
+			})
 	}
 
 	return config

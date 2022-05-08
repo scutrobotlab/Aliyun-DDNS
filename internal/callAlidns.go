@@ -17,7 +17,7 @@ type id_addr struct {
 }
 
 // Update DNS record with aliyun API. / 使用阿里云 API 更新 DNS 记录。
-func UpdateRecord(client *alidns.Client, config []Config, ipv6_addr map[string]string, ipv4_addr map[string]string) {
+func UpdateRecord(client *alidns.Client, config []Config, ipv4_addr map[string]string, ipv6_addr map[string]string) {
 	domains := map[string]bool{}
 	for _, c := range config {
 		domains[c.Domain] = true
@@ -28,7 +28,7 @@ func UpdateRecord(client *alidns.Client, config []Config, ipv6_addr map[string]s
 	for d := range domains {
 		request := alidns.CreateDescribeDomainRecordsRequest()
 		request.Scheme = "https"
-		request.Domain = d
+		request.DomainName = d
 		response, err := client.DescribeDomainRecords(request)
 		if err != nil {
 			log.Panicln(err.Error())
@@ -46,14 +46,22 @@ func UpdateRecord(client *alidns.Client, config []Config, ipv6_addr map[string]s
 	}
 
 	for _, conf := range config {
-		var addr string
+		var (
+			addr string
+			ok   bool
+		)
+		log.Println("Checking record. / 检查记录。", conf)
 		switch conf.Type {
 		case "AAAA":
-			addr = ipv6_addr[conf.Interface]
+			addr, ok = ipv6_addr[conf.Interface]
 		case "A":
-			addr = ipv4_addr[conf.Interface]
+			addr, ok = ipv4_addr[conf.Interface]
 		default:
-			log.Println("Invalid record type, skipped. / 不合法的记录类型，跳过。", conf.Type)
+			log.Println("Invalid record type, skipped. / 不合法的记录类型。", conf.Type)
+			continue
+		}
+		if !ok {
+			log.Println("Interface IP unfound, skipped. / 找不到接口对应IP。", conf.Interface)
 			continue
 		}
 		rdt := rr_domain_type{
@@ -64,11 +72,11 @@ func UpdateRecord(client *alidns.Client, config []Config, ipv6_addr map[string]s
 		rec, ok := records[rdt]
 		if !ok {
 			log.Println("Domain record not found. / 未找到匹配的记录。", rdt)
-			return
+			continue
 		}
 		if rec.Addr == addr {
-			log.Println("Domain record don't need to be modified. / 域名记录无需修改。")
-			return
+			log.Println("Domain record don't need to be modified. / 域名记录无需修改。IP: ", addr)
+			continue
 		}
 		request := alidns.CreateUpdateDomainRecordRequest()
 		request.RecordId = rec.ID
@@ -79,7 +87,7 @@ func UpdateRecord(client *alidns.Client, config []Config, ipv6_addr map[string]s
 		if err != nil {
 			log.Panicln(err.Error())
 		}
-		log.Println("Domain record has been modified. / 域名记录已修改。", response.String())
+		log.Println("Domain record has been modified. / 域名记录已修改。IP: ", addr, response)
 
 	}
 }
